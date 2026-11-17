@@ -199,6 +199,64 @@ async function githubRepoExists(user, repo, token) {
   return r.ok
 }
 
+/** 确保 Pages 已启用且走 GitHub Actions 构建。返回是否做了变更 */
+async function ensurePages(user, repo, token, log = () => {}) {
+  const H = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'personal-site-admin',
+    'Content-Type': 'application/json',
+  }
+  const api = `https://api.github.com/repos/${user}/${repo}/pages`
+
+  const get = await fetch(api, { headers: H })
+
+  if (get.ok) {
+    const j = await get.json()
+    if (j.build_type === 'workflow') return false
+    const put = await fetch(api, { method: 'PUT', headers: H, body: JSON.stringify({ build_type: 'workflow' }) })
+    if (put.ok || put.status === 204) {
+      log('Pages 构建方式已切换为 GitHub Actions')
+      return true
+    }
+    log(`切换 Pages 构建方式失败（${put.status}）`)
+    return false
+  }
+
+  if (get.status === 404) {
+    const post = await fetch(api, { method: 'POST', headers: H, body: JSON.stringify({ build_type: 'workflow' }) })
+    if (post.ok || post.status === 201) {
+      log('GitHub Pages 已启用')
+      return true
+    }
+    const t = await post.text()
+    log(`启用 Pages 失败（${post.status}）：${t.slice(0, 120)}`)
+    return false
+  }
+
+  log(`查询 Pages 状态失败（${get.status}）`)
+  return false
+}
+
+/** 手动触发一次部署工作流 */
+async function triggerWorkflow(user, repo, token, branch) {
+  const r = await fetch(
+    `https://api.github.com/repos/${user}/${repo}/actions/workflows/deploy.yml/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'personal-site-admin',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ref: branch }),
+    }
+  )
+  return r.status === 204 || r.ok
+}
+
+
 /** 诊断 Token：返回账户、类型、权限、仓库状态，并给出可执行的建议 */
 async function diagnose() {
   const cfg = await loadConfig()
@@ -372,6 +430,17 @@ async function publish() {
     throw new Error(`推送失败：${msg.split('\n').filter(Boolean).slice(-3).join(' ')}`)
   }
   push('推送完成')
+
+  // GitHub 处理完 push 后再确认 Pages 状态，避免与构建抢跑
+  await new Promise((r) => setTimeout(r, 1500))
+  const pagesChanged = await ensurePages(cfg.user, cfg.repo, cfg.token, push)
+
+  if (pagesChanged) {
+    await new Promise((r) => setTimeout(r, 1200))
+    if (await triggerWorkflow(cfg.user, cfg.repo, cfg.token, branch)) {
+      push('已重新触发部署')
+    }
+  }
 
   push('GitHub Actions 正在构建，通常 30–60 秒后生效')
   return {

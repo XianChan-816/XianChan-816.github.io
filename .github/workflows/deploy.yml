@@ -27,9 +27,6 @@ jobs:
           ls -la
 
       - uses: actions/configure-pages@v5
-        with:
-          # 仓库重建 / Pages 未启用时自动打开，省掉手动去 Settings 设置
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
