@@ -1,0 +1,14 @@
+{
+  "name": "personal-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "个人静态站点 + 本地内容管理后台",
+  "scripts": {
+    "admin": "node admin/server.js",
+    "start": "node admin/server.js",
+    "serve": "node admin/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

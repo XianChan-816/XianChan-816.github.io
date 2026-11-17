@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>站点后台</title>
+<style>
+  :root {
+    --bg: #f6f6f3;
+    --surface: #fff;
+    --text: #14181f;
+    --text-2: #4a515c;
+    --muted: #767d89;
+    --border: #e4e2dc;
+    --border-2: #d2cfc7;
+    --accent: #0f766e;
+    --accent-soft: #e8f3f1;
+    --danger: #b4342a;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  a { color: var(--accent); }
+
+  /* 顶栏 */
+  .bar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 24px;
+    background: rgba(255,255,255,.86);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .bar-l { display: flex; align-items: center; gap: 10px; }
+  .bar-l strong { font-size: 15px; }
+  .state { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #22a06b; }
+  .dot.dirty { background: #d98e04; }
+  .bar-r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  .btn {
+    padding: 8px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 550;
+    border: 1px solid var(--border-2); background: var(--surface); color: var(--text-2);
+    cursor: pointer; transition: .15s; font-family: inherit;
+  }
+  .btn:hover { color: var(--text); border-color: var(--text-2); }
+  .btn.primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn.primary:hover { opacity: .88; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.sm { padding: 5px 11px; font-size: 12.5px; }
+  .btn.danger { color: var(--danger); border-color: #e8cfcc; }
+  .btn.danger:hover { background: #fdf1f0; }
+
+  /* 标签页 */
+  .tabs {
+    display: flex; gap: 4px; padding: 0 24px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 59px; z-index: 19;
+  }
+  .tab {
+    padding: 11px 16px; font-size: 13.5px; font-weight: 550; color: var(--muted);
+    cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  main { max-width: 880px; margin: 0 auto; padding: 28px 24px 80px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  h2 { font-size: 1rem; margin: 0 0 4px; letter-spacing: -.01em; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 0 0 16px; }
+
+  .group {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 18px;
+  }
+  .group-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .group-head h2 { margin: 0; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-2); margin-bottom: 5px; }
+  .field .desc { font-weight: 400; color: var(--muted); margin-left: 6px; }
+
+  input[type=text], input[type=email], input[type=password], textarea {
+    width: 100%; padding: 8px 11px; font: inherit; font-size: 13.5px;
+    color: var(--text); background: #fdfdfc;
+    border: 1px solid var(--border); border-radius: 8px;
+    transition: .15s; font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { resize: vertical; min-height: 68px; line-height: 1.55; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+
+  /* 应用卡片 */
+  .app {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); margin-bottom: 12px; overflow: hidden;
+  }
+  .app-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 14px; background: #fbfbf9; border-bottom: 1px solid var(--border);
+  }
+  .app-head .name { font-weight: 600; font-size: 13.5px; margin-right: auto; }
+  .app-head .name.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+  .app-body { padding: 16px; }
+  .app-body .row + .row, .app-body .row + .field, .app-body .field + .row, .app-body .field + .field { margin-top: 12px; }
+
+  .icon-btn {
+    width: 26px; height: 26px; display: grid; place-items: center;
+    border: 1px solid var(--border); background: var(--surface); border-radius: 7px;
+    color: var(--muted); cursor: pointer; font-size: 13px; padding: 0;
+    transition: .15s; font-family: inherit;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--border-2); }
+
+  .check { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  /* 设置 */
+  .callout {
+    background: var(--accent-soft); border: 1px solid #cfe5e2;
+    border-radius: 10px; padding: 13px 15px; font-size: 12.5px; color: #14514b;
+    line-height: 1.65; margin-bottom: 16px;
+  }
+  .callout code {
+    background: rgba(15,118,110,.1); padding: 1px 5px; border-radius: 4px;
+    font-size: 12px; font-family: ui-monospace, Consolas, monospace;
+  }
+  .callout ol { margin: 6px 0 0; padding-left: 18px; }
+  .callout li { margin-bottom: 3px; }
+
+  /* 日志 */
+  .log {
+    background: #14181f; color: #d8dde5; border-radius: 10px;
+    padding: 14px 16px; font: 12.5px/1.75 ui-monospace, Consolas, monospace;
+    white-space: pre-wrap; margin-top: 16px; display: none;
+  }
+  .log.show { display: block; }
+  .log .ok { color: #4ade80; }
+  .log .err { color: #f87171; }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 26px; left: 50%; transform: translate(-50%, 20px);
+    background: var(--text); color: #fff; padding: 10px 20px; border-radius: 9px;
+    font-size: 13.5px; opacity: 0; pointer-events: none; transition: .22s;
+    z-index: 100; max-width: 80vw;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.err { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-l">
+    <strong>站点后台</strong>
+    <span class="state"><span class="dot" id="stateDot"></span><span id="stateText">已保存</span></span>
+  </div>
+  <div class="bar-r">
+    <a class="btn" href="/preview" target="_blank">预览站点</a>
+    <button class="btn primary" id="saveBtn">保存</button>
+    <button class="btn primary" id="pubBtn" style="background:var(--accent);border-color:var(--accent)">发布上线</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="profile">基本资料</button>
+  <button class="tab" data-tab="apps">应用管理</button>
+  <button class="tab" data-tab="settings">发布设置</button>
+</div>
+
+<main>
+  <!-- 基本资料 -->
+  <section class="panel active" id="panel-profile">
+    <div class="group">
+      <h2>站点信息</h2>
+      <p class="hint">影响浏览器标签页标题和搜索引擎摘要。</p>
+      <div class="field">
+        <label>网站标题</label>
+        <input type="text" data-path="site.title" placeholder="李杰 · 应用与作品">
+      </div>
+      <div class="field">
+        <label>网站描述</label>
+        <textarea data-path="site.description" placeholder="一句话说明这个站是干什么的"></textarea>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>个人信息</h2>
+      <div class="row">
+        <div class="field"><label>名字</label><input type="text" data-path="profile.name"></div>
+        <div class="field"><label>账号 handle</label><input type="text" data-path="profile.handle"></div>
+      </div>
+      <div class="field"><label>一句话介绍</label><input type="text" data-path="profile.headline"></div>
+      <div class="field"><label>简介</label><textarea data-path="profile.bio"></textarea></div>
+      <div class="field"><label>邮箱</label><input type="email" data-path="profile.email"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <h2>联系方式链接</h2>
+        <button class="btn sm" id="addLink">+ 新增链接</button>
+      </div>
+      <div id="linkList"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <h2>关于页小卡片</h2>
+        <button class="btn sm" id="addFact">+ 新增</button>
+      </div>
+      <p class="hint">「在做 / 用的 / 原则」这类信息块。</p>
+      <div id="factList"></div>
+    </div>
+  </section>
+
+  <!-- 应用管理 -->
+  <section class="panel" id="panel-apps">
+    <div class="group-head" style="margin-bottom:14px">
+      <div>
+        <h2>应用列表</h2>
+        <p class="hint" style="margin:4px 0 0">顺序即展示顺序；勾选「精选」会置顶并带角标。</p>
+      </div>
+      <button class="btn" id="addApp">+ 新增应用</button>
+    </div>
+    <div id="appList"></div>
+  </section>
+
+  <!-- 发布设置 -->
+  <section class="panel" id="panel-settings">
+    <div class="group">
+      <h2>GitHub 配置</h2>
+      <p class="hint">只需配置一次。保存后「发布上线」就是真一键。</p>
+
+      <div class="callout">
+        <strong>怎么拿 Token：</strong>
+        <ol>
+          <li>打开 <code>github.com/settings/tokens</code> → Generate new token (classic)</li>
+          <li>勾选 <code>repo</code> 和 <code>workflow</code> 两个权限</li>
+          <li>有效期随意（建议 90 天），生成后复制粘贴到下面</li>
+        </ol>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>GitHub 用户名</label>
+          <input type="text" id="cfgUser" placeholder="jerry159753aa-coder">
+        </div>
+        <div class="field">
+          <label>仓库名</label>
+          <input type="text" id="cfgRepo" placeholder="blog">
+        </div>
+      </div>
+      <div class="field">
+        <label>Personal Access Token <span class="desc">只存在本机 data/.deploy.json，不会进仓库</span></label>
+        <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+      <div class="field">
+        <label>分支</label>
+        <input type="text" id="cfgBranch" placeholder="main">
+      </div>
+      <button class="btn" id="saveCfg">保存配置</button>
+
+      <div class="callout" style="margin-top:16px;margin-bottom:0" id="urlPreview" hidden>
+        站点地址：<code id="urlText"></code>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>说明</h2>
+      <p class="hint" style="margin-bottom:0">
+        仓库名填 <code>用户名.github.io</code> 可以得到最干净的链接 <code>https://用户名.github.io/</code>；
+        填别的名字则是 <code>https://用户名.github.io/仓库名/</code>。<br>
+        首次发布后，去仓库 Settings → Pages 确认 Source 是 <b>GitHub Actions</b>。
+      </p>
+    </div>
+
+    <div class="log" id="log"></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s)
+const esc = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+
+let state = { site: {}, profile: {}, facts: [], apps: [] }
+let dirty = false
+
+function setDirty(v) {
+  dirty = v
+  $('#stateDot').classList.toggle('dirty', v)
+  $('#stateText').textContent = v ? '有未保存改动' : '已保存'
+}
+
+function toast(msg, isErr) {
+  const t = $('#toast')
+  t.textContent = msg
+  t.className = isErr ? 'show err' : 'show'
+  clearTimeout(t._tid)
+  t._tid = setTimeout(() => (t.className = ''), 2600)
+}
+
+function get(path) {
+  return path.split('.').reduce((o, k) => (o == null ? '' : o[k]), state)
+}
+function set(path, val) {
+  const keys = path.split('.')
+  const last = keys.pop()
+  const target = keys.reduce((o, k) => (o[k] ??= {}), state)
+  target[last] = val
+  setDirty(true)
+}
+
+/* ---------------- 渲染表单 ---------------- */
+function bindInputs() {
+  document.querySelectorAll('[data-path]').forEach((el) => {
+    el.value = get(el.dataset.path) ?? ''
+    el.addEventListener('input', () => set(el.dataset.path, el.value))
+  })
+}
+
+/* ---------------- 链接 ---------------- */
+function renderLinks() {
+  const box = $('#linkList')
+  const list = state.profile.links || (state.profile.links = [])
+  box.innerHTML = list.map((l, i) => `
+    <div class="row" style="margin-bottom:10px;align-items:end">
+      <div class="field" style="margin:0">
+        <label>名称</label>
+        <input type="text" value="${esc(l.label)}" data-link="${i}" data-k="label">
+      </div>
+      <div class="field" style="margin:0">
+        <label>链接</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" value="${esc(l.url)}" data-link="${i}" data-k="url">
+          <button class="icon-btn" data-dellink="${i}" title="删除">✕</button>
+        </div>
+      </div>
+    </div>`).join('')
+}
+$('#linkList').addEventListener('input', (e) => {
+  const i = e.target.dataset.link
+  if (i == null) return
+  state.profile.links[+i][e.target.dataset.k] = e.target.value
+  setDirty(true)
+})
+$('#linkList').addEventListener('click', (e) => {
+  const i = e.target.dataset.dellink
+  if (i == null) return
+  state.profile.links.splice(+i, 1)
+  setDirty(true)
+  renderLinks()
+})
+$('#addLink').addEventListener('click', () => {
+  (state.profile.links ||= []).push({ label: '', url: '' })
+  setDirty(true)
+  renderLinks()
+})
+
+/* ---------------- 小卡片 ---------------- */
+function renderFacts() {
+  const box = $('#factList')
+  box.innerHTML = state.facts.map((f, i) => `
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="margin:0">
+        <label>标签</label>
+        <input type="text" value="${esc(f.term)}" data-fact="${i}" data-k="term">
+      </div>
+      <div class="field" style="margin:0">
+        <label>内容</label>
+        <div style="display:flex;gap:6px">
+          <input type="text" value="${esc(f.desc)}" data-fact="${i}" data-k="desc">
+          <button class="icon-btn" data-delfact="${i}" title="删除">✕</button>
+        </div>
+      </div>
+    </div>`).join('')
+}
+$('#factList').addEventListener('input', (e) => {
+  const i = e.target.dataset.fact
+  if (i == null) return
+  state.facts[+i][e.target.dataset.k] = e.target.value
+  setDirty(true)
+})
+$('#factList').addEventListener('click', (e) => {
+  const i = e.target.dataset.delfact
+  if (i == null) return
+  state.facts.splice(+i, 1)
+  setDirty(true)
+  renderFacts()
+})
+$('#addFact').addEventListener('click', () => {
+  state.facts.push({ term: '', desc: '' })
+  setDirty(true)
+  renderFacts()
+})
+
+/* ---------------- 应用 ---------------- */
+function renderApps() {
+  const box = $('#appList')
+  if (!state.apps.length) {
+    box.innerHTML = '<p class="hint" style="padding:20px 0;text-align:center">还没有应用，点右上角「+ 新增应用」。</p>'
+    return
+  }
+  box.innerHTML = state.apps.map((a, i) => `
+    <div class="app">
+      <div class="app-head">
+        <span class="name ${a.name ? '' : 'empty'}">${a.name ? esc(a.name) : '未命名应用'}</span>
+        <button class="icon-btn" data-move="${i}" data-dir="-1" title="上移">↑</button>
+        <button class="icon-btn" data-move="${i}" data-dir="1" title="下移">↓</button>
+        <button class="icon-btn" data-delapp="${i}" title="删除">✕</button>
+      </div>
+      <div class="app-body">
+        <div class="row">
+          <div class="field" style="margin:0"><label>名称</label>
+            <input type="text" value="${esc(a.name)}" data-app="${i}" data-k="name"></div>
+          <div class="field" style="margin:0"><label>版本</label>
+            <input type="text" value="${esc(a.version)}" data-app="${i}" data-k="version" placeholder="v1.0.0"></div>
+        </div>
+        <div class="field"><label>简介</label>
+          <textarea data-app="${i}" data-k="desc" style="min-height:56px">${esc(a.desc)}</textarea></div>
+        <div class="field"><label>下载链接 <span class="desc">蓝奏云 / 网盘 / Releases 都行</span></label>
+          <input type="text" value="${esc(a.url)}" data-app="${i}" data-k="url" placeholder="https://"></div>
+        <div class="row-3">
+          <div class="field" style="margin:0"><label>标签 <span class="desc">逗号分隔</span></label>
+            <input type="text" value="${esc((a.tags || []).join(', '))}" data-app="${i}" data-k="tags"></div>
+          <div class="field" style="margin:0"><label>平台</label>
+            <input type="text" value="${esc(a.platform)}" data-app="${i}" data-k="platform" placeholder="Android"></div>
+          <div class="field" style="margin:0"><label>更新日期</label>
+            <input type="text" value="${esc(a.updated)}" data-app="${i}" data-k="updated" placeholder="2026-01-01"></div>
+        </div>
+        <label class="check" style="margin-top:12px">
+          <input type="checkbox" ${a.featured ? 'checked' : ''} data-app="${i}" data-k="featured"> 设为精选（置顶显示）
+        </label>
+      </div>
+    </div>`).join('')
+}
+
+function applyAppChange(el) {
+  const i = +el.dataset.app
+  const k = el.dataset.k
+  const app = state.apps[i]
+  if (!app) return
+  if (k === 'featured') app.featured = el.checked
+  else if (k === 'tags') app.tags = el.value.split(/[,，]/).map(s => s.trim()).filter(Boolean)
+  else app[k] = el.value
+  setDirty(true)
+  if (k === 'name') {
+    const nameEl = el.closest('.app').querySelector('.app-head .name')
+    nameEl.textContent = el.value || '未命名应用'
+    nameEl.classList.toggle('empty', !el.value)
+  }
+}
+$('#appList').addEventListener('input', (e) => {
+  if (e.target.dataset.app != null) applyAppChange(e.target)
+})
+$('#appList').addEventListener('change', (e) => {
+  if (e.target.type === 'checkbox' && e.target.dataset.app != null) applyAppChange(e.target)
+})
+$('#appList').addEventListener('click', (e) => {
+  const del = e.target.dataset.delapp
+  const mv = e.target.dataset.move
+  if (del != null) {
+    if (!confirm('确定删除这个应用？')) return
+    state.apps.splice(+del, 1)
+    setDirty(true)
+    renderApps()
+  }
+  if (mv != null) {
+    const i = +mv, dir = +e.target.dataset.dir, j = i + dir
+    if (j < 0 || j >= state.apps.length) return
+    ;[state.apps[i], state.apps[j]] = [state.apps[j], state.apps[i]]
+    setDirty(true)
+    renderApps()
+  }
+})
+$('#addApp').addEventListener('click', () => {
+  state.apps.unshift({
+    id: 'app-' + Date.now().toString(36),
+    name: '', desc: '', version: '', platform: '', tags: [], updated: '', url: '', featured: false,
+  })
+  setDirty(true)
+  renderApps()
+})
+
+/* ---------------- 标签页 ---------------- */
+document.querySelectorAll('.tab').forEach((t) => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === t))
+    document.querySelectorAll('.panel').forEach((p) =>
+      p.classList.toggle('active', p.id === 'panel-' + t.dataset.tab))
+  })
+})
+
+/* ---------------- 保存 ---------------- */
+async function save() {
+  const res = await fetch('/api/content', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state),
+  })
+  const json = await res.json()
+  if (!json.ok) throw new Error(json.error || '保存失败')
+  state = json.content
+  setDirty(false)
+  return state
+}
+
+$('#saveBtn').addEventListener('click', async () => {
+  try {
+    await save()
+    renderLinks(); renderFacts(); renderApps()
+    toast('已保存')
+  } catch (e) {
+    toast(e.message, true)
+  }
+})
+
+/* ---------------- 发布 ---------------- */
+$('#pubBtn').addEventListener('click', async () => {
+  const log = $('#log')
+  const btn = $('#pubBtn')
+  btn.disabled = true
+  btn.textContent = '发布中…'
+  log.classList.add('show')
+  log.textContent = '准备发布…\n'
+
+  try {
+    await save()
+    const res = await fetch('/api/publish', { method: 'POST' })
+    const json = await res.json()
+
+    if (!json.ok) {
+      log.innerHTML = `<span class="err">✗ ${esc(json.error)}</span>`
+      toast(json.error, true)
+      throw new Error(json.error)
+    }
+
+    log.innerHTML =
+      json.log.map((l) => `<span class="ok">✓</span> ${esc(l)}`).join('\n') +
+      `\n\n<span class="ok">站点地址</span> ${esc(json.url)}\n` +
+      `<span class="ok">构建进度</span> ${esc(json.actionsUrl)}`
+
+    toast('已推送，约 1 分钟后生效')
+    setDirty(false)
+  } catch (e) {
+    if (!log.textContent.trim().endsWith(e.message)) {
+      /* 已展示过 */
+    }
+  } finally {
+    btn.disabled = false
+    btn.textContent = '发布上线'
+  }
+})
+
+/* ---------------- 设置 ---------------- */
+async function loadConfig() {
+  const cfg = await (await fetch('/api/config')).json()
+  $('#cfgUser').value = cfg.user || ''
+  $('#cfgRepo').value = cfg.repo || ''
+  $('#cfgBranch').value = cfg.branch || 'main'
+  if (cfg.hasToken) $('#cfgToken').placeholder = '已保存，留空则不修改'
+  updateUrlPreview(cfg.url)
+}
+
+function updateUrlPreview(url) {
+  const box = $('#urlPreview')
+  if (url) {
+    box.hidden = false
+    $('#urlText').textContent = url
+  } else {
+    box.hidden = true
+  }
+}
+
+$('#saveCfg').addEventListener('click', async () => {
+  const body = {
+    user: $('#cfgUser').value.trim(),
+    repo: $('#cfgRepo').value.trim(),
+    branch: $('#cfgBranch').value.trim() || 'main',
+    token: $('#cfgToken').value.trim(),
+  }
+  const res = await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const json = await res.json()
+  if (!json.ok) return toast(json.error || '保存失败', true)
+  $('#cfgToken').value = ''
+  $('#cfgToken').placeholder = '已保存，留空则不修改'
+  updateUrlPreview(json.url)
+  toast('配置已保存')
+})
+
+/* ---------------- 初始化 ---------------- */
+;(async function init() {
+  try {
+    state = await (await fetch('/api/content')).json()
+    state.facts ||= []
+    state.profile ||= {}
+    state.site ||= {}
+    bindInputs()
+    renderLinks()
+    renderFacts()
+    renderApps()
+    await loadConfig()
+    setDirty(false)
+  } catch (e) {
+    toast('加载失败：' + e.message, true)
+  }
+})()
+
+window.addEventListener('beforeunload', (e) => {
+  if (dirty) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+})
+</script>
+</body>
+</html>
