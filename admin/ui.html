@@ -142,6 +142,18 @@
   .callout ol { margin: 6px 0 0; padding-left: 18px; }
   .callout li { margin-bottom: 3px; }
 
+  /* 诊断结果 */
+  .diag {
+    margin-top: 14px; padding: 14px 16px; border-radius: 10px;
+    background: #fbfbf9; border: 1px solid var(--border); font-size: 13px;
+  }
+  .diag .kv { display: flex; gap: 8px; margin-bottom: 4px; }
+  .diag .kv b { color: var(--text-2); font-weight: 600; min-width: 78px; }
+  .diag ul { margin: 10px 0 0; padding-left: 18px; }
+  .diag li { margin-bottom: 6px; line-height: 1.6; }
+  .diag .good { color: #17835b; }
+  .diag .bad { color: var(--danger); }
+
   /* 日志 */
   .log {
     background: #14181f; color: #d8dde5; border-radius: 10px;
@@ -273,7 +285,12 @@
         <label>分支</label>
         <input type="text" id="cfgBranch" placeholder="main">
       </div>
-      <button class="btn" id="saveCfg">保存配置</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="saveCfg">保存配置</button>
+        <button class="btn" id="diagBtn">检测当前配置</button>
+      </div>
+
+      <div id="diagOut" class="diag" hidden></div>
 
       <div class="callout" style="margin-top:16px;margin-bottom:0" id="urlPreview" hidden>
         站点地址：<code id="urlText"></code>
@@ -606,6 +623,50 @@ $('#saveCfg').addEventListener('click', async () => {
   $('#cfgToken').placeholder = '已保存，留空则不修改'
   updateUrlPreview(json.url)
   toast('配置已保存')
+})
+
+/* ---------------- 诊断 ---------------- */
+$('#diagBtn').addEventListener('click', async () => {
+  const out = $('#diagOut')
+  const btn = $('#diagBtn')
+  out.hidden = false
+  out.innerHTML = '<span style="color:var(--muted)">检测中…</span>'
+  btn.disabled = true
+  try {
+    // 先保存当前填的内容，避免测的是旧配置
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: $('#cfgUser').value.trim(),
+        repo: $('#cfgRepo').value.trim(),
+        branch: $('#cfgBranch').value.trim() || 'main',
+        token: $('#cfgToken').value.trim(),
+      }),
+    })
+    $('#cfgToken').value = ''
+    $('#cfgToken').placeholder = '已保存，留空则不修改'
+
+    const res = await fetch('/api/diag', { method: 'POST' })
+    const d = await res.json()
+    if (!d.ok) {
+      out.innerHTML = `<span class="bad">✗ ${esc(d.error)}</span>`
+      return
+    }
+    out.innerHTML = `
+      <div class="kv"><b>Token 类型</b><span>${d.tokenType === 'classic' ? 'classic（经典）' : 'fine-grained（细粒度）'}</span></div>
+      <div class="kv"><b>所属账号</b><span>${esc(d.login)}</span></div>
+      <div class="kv"><b>权限范围</b><span>${esc(d.scopes || '')}</span></div>
+      <div class="kv"><b>仓库状态</b><span>${d.repoExists ? '已存在' : '不存在（发布时自动创建）'}</span></div>
+      <div class="kv"><b>写权限</b><span class="${d.canPush || !d.repoExists ? 'good' : 'bad'}">${
+        d.repoExists ? (d.canPush ? '有' : '没有') : '待创建'
+      }</span></div>
+      <ul>${d.hints.map((h) => `<li>${esc(h)}</li>`).join('')}</ul>`
+  } catch (e) {
+    out.innerHTML = `<span class="bad">✗ ${esc(e.message)}</span>`
+  } finally {
+    btn.disabled = false
+  }
 })
 
 /* ---------------- 初始化 ---------------- */
