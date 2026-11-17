@@ -34,21 +34,6 @@ window.SITE_DATA = {
   ],
   "apps": [
     {
-      "id": "echidna",
-      "name": "Echidna 变声器",
-      "desc": "基于 Zygisk + LSPosed 的全局变声工具，支持 KernelSU 与 Android 15。",
-      "version": "v2.4.0",
-      "platform": "Android",
-      "tags": [
-        "Android",
-        "Root",
-        "音频"
-      ],
-      "updated": "2026-11-10",
-      "url": "https://www.lanzou.com/",
-      "featured": true
-    },
-    {
       "id": "toolbox",
       "name": "工具箱",
       "desc": "自用命令行小工具集合，批量重命名、文件校验、编码转换。",
@@ -59,34 +44,6 @@ window.SITE_DATA = {
         "工具"
       ],
       "updated": "2026-10-02",
-      "url": "https://www.lanzou.com/",
-      "featured": false
-    },
-    {
-      "id": "dotsync",
-      "name": "配置同步",
-      "desc": "跨设备同步 dotfiles 的小脚本，一条命令拉取全部环境配置。",
-      "version": "v0.9.1",
-      "platform": "跨平台",
-      "tags": [
-        "工具",
-        "脚本"
-      ],
-      "updated": "2026-08-21",
-      "url": "https://www.lanzou.com/",
-      "featured": false
-    },
-    {
-      "id": "patch",
-      "name": "某 App 汉化补丁",
-      "desc": "界面汉化与细节修复，解压后覆盖到安装目录即可，记得先备份。",
-      "version": "v5.6.7",
-      "platform": "Windows",
-      "tags": [
-        "Windows",
-        "汉化"
-      ],
-      "updated": "2026-07-15",
       "url": "https://www.lanzou.com/",
       "featured": false
     }
