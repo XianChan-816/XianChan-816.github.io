@@ -221,6 +221,15 @@ async function createGithubRepo(user, repo, token) {
   })
   if (!r.ok) {
     const t = await r.text()
+    if (r.status === 403 || r.status === 401) {
+      throw new Error(
+        '创建仓库失败：Token 权限不足。请给 Token 加上 Administration（Read and write），' +
+          '或者手动去 GitHub 新建同名仓库后再点发布。'
+      )
+    }
+    if (r.status === 422 && /already exists/i.test(t)) {
+      return isUserSite
+    }
     throw new Error(`创建仓库失败（${r.status}）：${t.slice(0, 200)}`)
   }
   return isUserSite
