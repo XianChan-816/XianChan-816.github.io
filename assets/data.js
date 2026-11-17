@@ -10,19 +10,11 @@ window.SITE_DATA = {
     "handle": "@lijie",
     "headline": "折腾 Android、逆向和一切好看的东西",
     "bio": "平时写点小工具自己用，顺手放出来。所有应用都是业余时间维护，有问题欢迎邮件找我。",
-    "email": "hi@example.com",
+    "email": "1077292573@qq.com",
     "links": [
       {
-        "label": "GitHub",
-        "url": "https://github.com/"
-      },
-      {
-        "label": "博客",
-        "url": "#"
-      },
-      {
         "label": "邮件",
-        "url": "mailto:hi@example.com"
+        "url": "1077292573@qq.com"
       }
     ]
   },
