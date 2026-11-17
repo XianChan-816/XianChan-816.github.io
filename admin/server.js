@@ -199,6 +199,80 @@ async function githubRepoExists(user, repo, token) {
   return r.ok
 }
 
+/** 诊断 Token：返回账户、类型、权限、仓库状态，并给出可执行的建议 */
+async function diagnose() {
+  const cfg = await loadConfig()
+  const result = { ok: true, hints: [], login: '', tokenType: '', scopes: '', repoExists: false, canPush: false, permissions: null }
+
+  if (!cfg.token) throw new Error('还没填 Token')
+  if (!cfg.user || !cfg.repo) throw new Error('还没填用户名和仓库名')
+
+  const H = {
+    Authorization: `Bearer ${cfg.token}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'personal-site-admin',
+  }
+
+  // 1. Token 本身是否有效
+  const me = await fetch('https://api.github.com/user', { headers: H })
+  if (me.status === 401) {
+    throw new Error('Token 无效或已过期（401）。重新生成一个再填进来。')
+  }
+  if (!me.ok) {
+    throw new Error(`调用 GitHub 失败（${me.status}）。可能是网络问题，稍后再试。`)
+  }
+  const meJson = await me.json()
+  result.login = meJson.login
+
+  const scopes = me.headers.get('x-oauth-scopes')
+  result.scopes = scopes === null ? '(未返回，说明是细粒度 Token)' : scopes
+  result.tokenType = scopes === null ? 'fine-grained' : 'classic'
+
+  if (result.login.toLowerCase() !== cfg.user.toLowerCase()) {
+    result.hints.push(
+      `Token 属于账号 ${result.login}，但设置里填的用户名是 ${cfg.user}。两者不一致会导致推送失败，请改成 ${result.login}。`
+    )
+  }
+
+  if (result.tokenType === 'classic') {
+    if (!/repo/.test(scopes || '')) {
+      result.hints.push('这是 classic Token，但没有 repo 权限。去勾上 repo（整块）再重新生成。')
+    }
+    if (!/workflow/.test(scopes || '')) {
+      result.hints.push('缺少 workflow 权限，推送含 .github/workflows 的仓库会失败。')
+    }
+  }
+
+  // 2. 仓库是否存在、是否可写
+  const repoResp = await fetch(`https://api.github.com/repos/${cfg.user}/${cfg.repo}`, { headers: H })
+  if (repoResp.ok) {
+    const rj = await repoResp.json()
+    result.repoExists = true
+    result.permissions = rj.permissions || null
+    result.canPush = Boolean(rj.permissions?.push || rj.permissions?.admin)
+    if (!result.canPush) {
+      result.hints.push(
+        '仓库存在，但当前 Token 没有写权限。细粒度 Token 要在 Repository access 里选中这个仓库，并把 Contents 设为 Read and write。'
+      )
+    }
+  } else if (repoResp.status === 404) {
+    result.repoExists = false
+    if (result.tokenType === 'fine-grained') {
+      result.hints.push(
+        '仓库不可见（404）。两种情况：①还没创建——需要 Administration 读写权限来自动创建；②已创建但细粒度 Token 的 Repository access 没包含它。'
+      )
+    } else {
+      result.hints.push('仓库不存在，发布时会自动创建（需要 Token 有建仓权限）。')
+    }
+  } else {
+    result.hints.push(`查询仓库返回 ${repoResp.status}，可能是 Token 未授权访问该仓库。`)
+  }
+
+  if (result.hints.length === 0) result.hints.push('权限没问题，可以直接发布。')
+
+  return result
+}
+
 async function createGithubRepo(user, repo, token) {
   const isUserSite = repo.toLowerCase() === `${user.toLowerCase()}.github.io`
   const r = await fetch('https://api.github.com/user/repos', {
@@ -345,6 +419,7 @@ const server = http.createServer(async (req, res) => {
         const result = await publish()
         return sendJSON(res, 200, { ok: true, ...result })
       } catch (e) {
+        console.error('[publish] 失败：', e.message)
         return sendJSON(res, 400, { ok: false, error: e.message })
       }
     }
@@ -375,6 +450,14 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 200, { ok: true, url: siteUrl(next.user, next.repo) })
       }
       return sendJSON(res, 405, { ok: false, error: '不支持的请求方法' })
+    }
+
+    if (pathname === '/api/diag' && req.method === 'POST') {
+      try {
+        return sendJSON(res, 200, { ok: true, ...(await diagnose()) })
+      } catch (e) {
+        return sendJSON(res, 400, { ok: false, error: e.message })
+      }
     }
 
     if (pathname === '/api/status') {
